@@ -26,8 +26,8 @@ scikit-learn==1.5.0
 scipy>=1.11,<1.13
 
 # ── Optional: boosting models (install as needed) ─────────────────────────────
-xgboost==2.0.3
-lightgbm==4.3.0
+# xgboost==2.0.3
+# lightgbm==4.3.0
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest==8.2.0
