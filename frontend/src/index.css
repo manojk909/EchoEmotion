@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface text-slate-100 antialiased;
+  }
+  * {
+    @apply border-surface-border;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-card rounded-2xl border border-surface-border p-6;
+  }
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-600 text-white font-medium px-6 py-3 rounded-xl
+           transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed
+           active:scale-95;
+  }
+  .btn-ghost {
+    @apply bg-transparent hover:bg-white/5 text-slate-300 hover:text-white
+           font-medium px-4 py-2 rounded-xl transition-all duration-200;
+  }
+  .input {
+    @apply bg-surface-card border border-surface-border rounded-xl px-4 py-3
+           text-slate-100 placeholder-slate-500 focus:outline-none
+           focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500
+           transition-all duration-200 w-full;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-surface; }
+::-webkit-scrollbar-thumb { @apply bg-surface-border rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
+
+/* Animated gradient background */
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 60%),
+    #0f172a;
+}

@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ser_user
+      POSTGRES_PASSWORD: ser_pass
+      POSTGRES_DB:       ser_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ser_user -d ser_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI backend ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG:              "false"
+      DATABASE_URL:       "postgresql+asyncpg://ser_user:ser_pass@db:5432/ser_db"
+      DATABASE_URL_SYNC:  "postgresql://ser_user:ser_pass@db:5432/ser_db"
+      SECRET_KEY:         "change-me-for-production!"
+      JWT_SECRET_KEY:     "change-jwt-secret-for-production!"
+      ALLOWED_ORIGINS:    "http://localhost:5173,http://localhost:3000"
+      DATASET_PATH:       "/app/dataset"
+      MODELS_DIR:         "/app/models"
+      UPLOAD_FOLDER:      "/app/uploads"
+    volumes:
+      - ./backend/dataset:/app/dataset:ro
+      - ./backend/models:/app/models
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── React frontend ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: "http://localhost:8000/api/v1"
+
+volumes:
+  postgres_data:
