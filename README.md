@@ -69,6 +69,8 @@ EchoEmotion is an end-to-end production-ready Speech Emotion Recognition system 
 
 ---
 
+![CI/CD](https://github.com/manojk909/EchoEmotion/actions/workflows/ci.yml/badge.svg)
+
 ## Tech Stack
 
 | Layer      | Technology                                       |
