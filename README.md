@@ -2,10 +2,12 @@
 
 > Detect human emotions (calm, happy, fearful, disgust) from audio in real-time using a multi-model ML pipeline, a FastAPI backend, and a React + Tailwind frontend.
 
-[![CI](https://github.com/your-username/echoemotion/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/echoemotion/actions)
+[![CI/CD](https://github.com/manojk909/echoemotion/actions/workflows/ci.yml/badge.svg)](https://github.com/manojk909/echoemotion/actions)
 [![Python](https://img.shields.io/badge/python-3.11-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-20.10-blue)](https://docker.com)
 
 ---
 
@@ -68,8 +70,6 @@ EchoEmotion is an end-to-end production-ready Speech Emotion Recognition system 
 ```
 
 ---
-
-![CI/CD](https://github.com/manojk909/EchoEmotion/actions/workflows/ci.yml/badge.svg)
 
 ## Tech Stack
 
