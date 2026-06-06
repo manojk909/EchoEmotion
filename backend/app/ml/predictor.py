@@ -1,3 +1,4 @@
+from sklearn.neural_network import MLPClassifier
 """Load persisted EchoEmotion model and run inference."""
 import json
 import logging
@@ -83,24 +84,25 @@ class EmotionPredictor:
             "all_probabilities": all_probs,
         }
 
+
     def get_info(self) -> dict:
         """Return metadata about the loaded model artefacts."""
         if not self.is_loaded():
             return {"loaded": False}
 
-        info: dict = {
+        info = {
             "loaded": True,
             "emotions": self._label_encoder.classes_.tolist(),
             "n_features": getattr(self._model, "n_features_in_", "unknown"),
+            "algorithm": type(self._model).__name__,
         }
 
-        # MLP-specific extras
-        if hasattr(self._model, "n_iter_"):
+        # Only add MLP-specific information for MLP models
+        if isinstance(self._model, MLPClassifier):
             info["n_iter"] = self._model.n_iter_
             info["loss"] = round(self._model.loss_, 6)
             info["hidden_layer_sizes"] = list(self._model.hidden_layer_sizes)
 
-        info["algorithm"] = type(self._model).__name__
         return info
 
     def get_metrics(self) -> Optional[dict]:
