@@ -22,7 +22,8 @@ librosa==0.10.2
 soundfile==0.12.1
 numpy==1.26.4
 scikit-learn==1.5.0
-scipy==1.13.1
+# scipy==1.13.1
+scipy>=1.11,<1.13
 
 # ── Optional: boosting models (install as needed) ─────────────────────────────
 xgboost==2.0.3
