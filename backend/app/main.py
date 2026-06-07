@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI):
 # ── App factory ───────────────────────────────────────────────────────────────
 def create_app() -> FastAPI:
     app = FastAPI(
+        
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
         description=(
@@ -58,6 +59,18 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+    @app.middleware("http")
+    async def log_requests(request, call_next):
+        logger.info("Incoming request: %s %s",
+                    request.method,
+                    request.url.path)
+
+        response = await call_next(request)
+
+        logger.info("Response status: %s",
+                    response.status_code)
+
+        return response
 
     # ── Middleware ─────────────────────────────────────────────────────────────
     app.add_middleware(
