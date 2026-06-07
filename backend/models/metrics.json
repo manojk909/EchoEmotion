@@ -17,7 +17,7 @@
       "f1_weighted": 0.6476,
       "cv_f1_mean": 0.7057,
       "cv_f1_std": 0.06,
-      "training_time_s": 0.9,
+      "training_time_s": 0.4,
       "classification_report": {
         "calm": {
           "precision": 0.7450980392156863,
@@ -63,7 +63,7 @@
       "f1_weighted": 0.6936,
       "cv_f1_mean": 0.6644,
       "cv_f1_std": 0.0206,
-      "training_time_s": 1.5,
+      "training_time_s": 0.57,
       "classification_report": {
         "calm": {
           "precision": 0.7543859649122807,
@@ -109,7 +109,7 @@
       "f1_weighted": 0.7392,
       "cv_f1_mean": 0.774,
       "cv_f1_std": 0.0263,
-      "training_time_s": 0.32,
+      "training_time_s": 0.18,
       "classification_report": {
         "calm": {
           "precision": 0.8431372549019608,
@@ -155,7 +155,7 @@
       "f1_weighted": 0.696,
       "cv_f1_mean": 0.7219,
       "cv_f1_std": 0.0363,
-      "training_time_s": 8.09,
+      "training_time_s": 9.09,
       "classification_report": {
         "calm": {
           "precision": 0.7592592592592593,
@@ -201,7 +201,7 @@
       "f1_weighted": 0.7173,
       "cv_f1_mean": 0.7675,
       "cv_f1_std": 0.045,
-      "training_time_s": 6.58,
+      "training_time_s": 4.01,
       "classification_report": {
         "calm": {
           "precision": 0.8269230769230769,
