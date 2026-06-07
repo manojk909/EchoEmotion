@@ -59,12 +59,12 @@ def extract_features(
             sample_rate,
         )
 
-        X = librosa.resample(
-            X,
-            orig_sr=sr,
-            target_sr=sample_rate,
-        )
-        sr = sample_rate
+        # X = librosa.resample(
+        #     X,
+        #     orig_sr=sr,
+        #     target_sr=sample_rate,
+        # )
+        # sr = sample_rate
 
     result = np.array([], dtype=np.float32)
 
@@ -73,26 +73,15 @@ def extract_features(
 
     logger.info("Chroma disabled for debugging")
 
-    logger.info("Resampling to 22050 Hz")
-
-    if sr != 22050:
-        logger.info("Resampling to 22050 Hz")
-
-        X = librosa.resample(
-            X,
-            orig_sr=sr,
-            target_sr=22050,
-        )
-
-        sr = 22050
+    # if sr != 22050:
+    logger.info("Skipping resample for debugging")
 
     if use_mfcc:
         logger.info("Computing MFCC")
 
         start = time.time()
         try:
-            logger.info("START MFCC")
-
+            logger.info("START MFCC")   
             mfcc_raw = librosa.feature.mfcc(
                 y=X,
                 sr=sr,
@@ -105,6 +94,7 @@ def extract_features(
                 mfcc_raw.shape,
                 mfcc_raw.dtype,
             )
+            logger.info("END MFCC")
         except Exception as e:
             logger.exception("MFCC FAILED: %s", e)
             raise
@@ -121,43 +111,47 @@ def extract_features(
             time.time() - start,
         )
 
-        logger.info("END MFCC")
 
         result = np.hstack((result, mfccs))
 
-    if use_chroma:
-        logger.info("Computing Chroma")
+    # if use_chroma:
+    #     logger.info("Computing Chroma")
 
-        chroma = np.mean(
-            librosa.feature.chroma_stft(
-                S=stft,
-                sr=sr,
-            ).T,
-            axis=0,
-        ).astype(np.float32)
+    #     chroma = np.mean(
+    #         librosa.feature.chroma_stft(
+    #             S=stft,
+    #             sr=sr,
+    #         ).T,
+    #         axis=0,
+    #     ).astype(np.float32)
 
-        logger.info(
-            "Chroma complete. shape=%s",
-            chroma.shape,
-        )
+        # logger.info(
+        #     "Chroma complete. shape=%s",
+        #     chroma.shape,
+        # )
 
-        result = np.hstack((result, chroma))
+        # result = np.hstack((result, chroma))
 
     if use_mel:
-        logger.info("Computing Mel")
+        logger.info("START MEL")
+
+        mel_raw = librosa.feature.melspectrogram(
+            y=X,
+            sr=sr,
+        )
+
+        logger.info(
+            "MEL GENERATED. shape=%s dtype=%s",
+            mel_raw.shape,
+            mel_raw.dtype,
+        )
 
         mel = np.mean(
-            librosa.feature.melspectrogram(
-                y=X,
-                sr=sr,
-            ).T,
+            mel_raw.T,
             axis=0,
         ).astype(np.float32)
 
-        logger.info(
-            "Mel complete. shape=%s",
-            mel.shape,
-        )
+        logger.info("END MEL")
 
         result = np.hstack((result, mel))
 
