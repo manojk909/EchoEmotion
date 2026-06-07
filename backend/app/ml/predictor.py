@@ -55,34 +55,46 @@ class EmotionPredictor:
     def predict(self, file_path: str | Path) -> dict:
         """
         Predict emotion from an audio file.
-
-        Returns
-        -------
-        dict  Keys: predicted_emotion, confidence, all_probabilities
         """
         if not self.is_loaded():
             raise RuntimeError("Model not loaded. Train first via POST /api/v1/train.")
 
-        features = extract_features(str(file_path), n_mfcc=self.n_mfcc)
-        X = self._scaler.transform(features.reshape(1, -1))
+        try:
+            logger.info("Extracting features...")
+            features = extract_features(str(file_path), n_mfcc=self.n_mfcc)
 
-        proba = self._model.predict_proba(X)[0]
-        classes = self._label_encoder.classes_
+            logger.info("Features shape: %s", features.shape)
 
-        pred_idx = int(np.argmax(proba))
-        predicted_emotion = classes[pred_idx]
-        confidence = round(float(proba[pred_idx]) * 100, 2)
+            logger.info("Scaling features...")
+            logger.info("Model type: %s", type(self._model).__name__)
+            logger.info("Scaler type: %s", type(self._scaler).__name__)
+            X = self._scaler.transform(features.reshape(1, -1))
 
-        all_probs = {
-            emotion: round(float(p) * 100, 2)
-            for emotion, p in zip(classes, proba)
-        }
+            logger.info("Running model prediction...")
+            proba = self._model.predict_proba(X)[0]
 
-        return {
-            "predicted_emotion": predicted_emotion,
-            "confidence": confidence,
-            "all_probabilities": all_probs,
-        }
+            logger.info("Prediction successful")
+
+            classes = self._label_encoder.classes_
+
+            pred_idx = int(np.argmax(proba))
+            predicted_emotion = classes[pred_idx]
+            confidence = round(float(proba[pred_idx]) * 100, 2)
+
+            all_probs = {
+                emotion: round(float(p) * 100, 2)
+                for emotion, p in zip(classes, proba)
+            }
+
+            return {
+                "predicted_emotion": predicted_emotion,
+                "confidence": confidence,
+                "all_probabilities": all_probs,
+            }
+
+        except Exception as exc:
+            logger.exception("Prediction failed: %s", exc)
+            raise
 
 
     def get_info(self) -> dict:

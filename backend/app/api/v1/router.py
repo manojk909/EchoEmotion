@@ -160,6 +160,9 @@ async def predict(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    logger.info("========== PREDICT REQUEST RECEIVED ==========")
+    logger.info("Filename: %s", file.filename)
+
     # ── Extension check ────────────────────────────────────────────────────────
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -170,37 +173,77 @@ async def predict(
 
     # ── Size check ─────────────────────────────────────────────────────────────
     contents = await file.read()
+
+    logger.info("File size: %s bytes", len(contents))
+
     if len(contents) > MAX_BYTES:
-        raise HTTPException(status_code=413, detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB} MB limit.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB} MB limit."
+        )
+
     if len(contents) == 0:
-        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+        raise HTTPException(
+            status_code=422,
+            detail="Uploaded file is empty."
+        )
 
     # ── Save temp file ─────────────────────────────────────────────────────────
     tmp_name = f"{uuid.uuid4().hex}_{file.filename}"
     tmp_path = settings.upload_folder / tmp_name
+
     try:
         tmp_path.write_bytes(contents)
+
+        logger.info("Temp file saved: %s", tmp_path)
 
         # Audio integrity check
         try:
             import soundfile as sf
+
             info = sf.info(str(tmp_path))
             duration = info.duration
+
             if duration < 0.1:
-                raise HTTPException(status_code=422, detail="Audio is too short (< 0.1 s).")
+                raise HTTPException(
+                    status_code=422,
+                    detail="Audio is too short (< 0.1 s)."
+                )
+
             if duration > 120:
-                raise HTTPException(status_code=422, detail="Audio exceeds 120 s limit.")
+                raise HTTPException(
+                    status_code=422,
+                    detail="Audio exceeds 120 s limit."
+                )
+
+            logger.info("Audio duration: %.2f seconds", duration)
+
         except HTTPException:
             raise
+
         except Exception as exc:
-            raise HTTPException(status_code=422, detail=f"Cannot read audio: {exc}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot read audio: {exc}"
+            )
 
         # ── Run prediction ─────────────────────────────────────────────────────
+        logger.info("Getting predictor...")
         predictor = get_predictor()
-        if not predictor.is_loaded():
-            raise HTTPException(status_code=503, detail="Model not trained yet. POST /api/v1/train first.")
 
+        logger.info("Predictor loaded=%s", predictor.is_loaded())
+
+        if not predictor.is_loaded():
+            raise HTTPException(
+                status_code=503,
+                detail="Model not trained yet. POST /api/v1/train first."
+            )
+
+        logger.info("Starting prediction...")
         result = predictor.predict(tmp_path)
+        logger.info("Prediction finished")
+
+        logger.info("Prediction result: %s", result)
 
         # ── Persist to DB ──────────────────────────────────────────────────────
         row = Prediction(
@@ -212,18 +255,32 @@ async def predict(
             confidence=result["confidence"],
             all_probabilities=result["all_probabilities"],
         )
+
         db.add(row)
 
         # Update aggregated emotion stats
         stat_res = await db.execute(
-            select(EmotionStat).where(EmotionStat.emotion == result["predicted_emotion"])
+            select(EmotionStat).where(
+                EmotionStat.emotion == result["predicted_emotion"]
+            )
         )
+
         stat = stat_res.scalar_one_or_none()
+
         if stat is None:
-            stat = EmotionStat(emotion=result["predicted_emotion"], total_count=1, avg_confidence=result["confidence"])
+            stat = EmotionStat(
+                emotion=result["predicted_emotion"],
+                total_count=1,
+                avg_confidence=result["confidence"],
+            )
             db.add(stat)
+
         else:
-            new_avg = (stat.avg_confidence * stat.total_count + result["confidence"]) / (stat.total_count + 1)
+            new_avg = (
+                stat.avg_confidence * stat.total_count
+                + result["confidence"]
+            ) / (stat.total_count + 1)
+
             stat.total_count += 1
             stat.avg_confidence = round(new_avg, 2)
 
@@ -242,7 +299,6 @@ async def predict(
     finally:
         if tmp_path.exists():
             tmp_path.unlink(missing_ok=True)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MODEL INFO & METRICS
