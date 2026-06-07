@@ -245,55 +245,58 @@ async def predict(
 
         logger.info("Prediction result: %s", result)
 
-        # ── Persist to DB ──────────────────────────────────────────────────────
-        row = Prediction(
-            user_id=current_user.id if current_user else None,
-            filename=file.filename or "unknown",
-            file_size_bytes=len(contents),
-            audio_duration_s=round(duration, 2),
-            predicted_emotion=result["predicted_emotion"],
-            confidence=result["confidence"],
-            all_probabilities=result["all_probabilities"],
-        )
-
-        db.add(row)
-
-        # Update aggregated emotion stats
-        stat_res = await db.execute(
-            select(EmotionStat).where(
-                EmotionStat.emotion == result["predicted_emotion"]
+        # ── Persist to DB (safe — DB errors never kill a successful prediction) ──
+        row_id = None
+        row_created_at = None
+        try:
+            row = Prediction(
+                user_id=current_user.id if current_user else None,
+                filename=file.filename or "unknown",
+                file_size_bytes=len(contents),
+                audio_duration_s=round(duration, 2),
+                predicted_emotion=result["predicted_emotion"],
+                confidence=result["confidence"],
+                all_probabilities=result["all_probabilities"],
             )
-        )
+            db.add(row)
 
-        stat = stat_res.scalar_one_or_none()
-
-        if stat is None:
-            stat = EmotionStat(
-                emotion=result["predicted_emotion"],
-                total_count=1,
-                avg_confidence=result["confidence"],
+            stat_res = await db.execute(
+                select(EmotionStat).where(
+                    EmotionStat.emotion == result["predicted_emotion"]
+                )
             )
-            db.add(stat)
+            stat = stat_res.scalar_one_or_none()
+            if stat is None:
+                stat = EmotionStat(
+                    emotion=result["predicted_emotion"],
+                    total_count=1,
+                    avg_confidence=result["confidence"],
+                )
+                db.add(stat)
+            else:
+                new_avg = (
+                    stat.avg_confidence * stat.total_count + result["confidence"]
+                ) / (stat.total_count + 1)
+                stat.total_count += 1
+                stat.avg_confidence = round(new_avg, 2)
 
-        else:
-            new_avg = (
-                stat.avg_confidence * stat.total_count
-                + result["confidence"]
-            ) / (stat.total_count + 1)
+            await db.flush()
+            row_id = row.id
+            row_created_at = row.created_at
+            logger.info("Prediction saved to DB: id=%s", row_id)
 
-            stat.total_count += 1
-            stat.avg_confidence = round(new_avg, 2)
-
-        await db.flush()
+        except Exception as db_exc:
+            logger.warning("DB write failed (non-fatal): %s", db_exc)
+            # Prediction still succeeded — return result without DB id
 
         return PredictionOut(
-            id=row.id,
-            filename=row.filename,
+            id=row_id,
+            filename=file.filename or "unknown",
             predicted_emotion=result["predicted_emotion"],
             confidence=result["confidence"],
             all_probabilities=result["all_probabilities"],
             audio_duration_s=round(duration, 2),
-            created_at=row.created_at,
+            created_at=row_created_at,
         )
 
     finally:
