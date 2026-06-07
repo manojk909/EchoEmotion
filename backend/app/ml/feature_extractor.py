@@ -68,16 +68,23 @@ def extract_features(
 
     result = np.array([], dtype=np.float32)
 
-    if use_chroma or use_mfcc:
-        logger.info("Computing STFT")
+    # TEMP DEBUG
+    use_chroma = False
 
-        stft = np.abs(librosa.stft(X))
+    logger.info("Chroma disabled for debugging")
 
-        logger.info(
-            "STFT complete. shape=%s dtype=%s",
-            stft.shape,
-            stft.dtype,
+    logger.info("Resampling to 22050 Hz")
+
+    if sr != 22050:
+        logger.info("Resampling to 22050 Hz")
+
+        X = librosa.resample(
+            X,
+            orig_sr=sr,
+            target_sr=22050,
         )
+
+        sr = 22050
 
     if use_mfcc:
         logger.info("Computing MFCC")
