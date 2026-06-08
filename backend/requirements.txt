@@ -34,3 +34,4 @@ lightgbm==4.3.0
 gunicorn==22.0.0
 
 aiosqlite==0.20.0
+pytest>=8.0.0
