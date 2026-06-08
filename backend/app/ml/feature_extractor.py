@@ -1,11 +1,10 @@
-"""Audio feature extraction: MFCC + Chroma + Mel-spectrogram.
+"""
+Audio feature extraction — lazy imports for fast startup.
 
-Memory-optimised for Render free tier (512 MB RAM).
-Key changes vs previous version:
-  - res_type='kaiser_fast'  → 10x less memory than default 'kaiser_best'
-  - Clip audio to 10 s max before feature extraction
-  - Explicit del + gc.collect() after heavy intermediate arrays
-  - float32 throughout — never upcasts to float64
+Critical for Render free tier: librosa + numba take 20-40s to JIT-compile
+on first import. By importing inside the function (lazy), uvicorn starts
+instantly and passes the health check. librosa loads only on the first
+actual prediction request.
 """
 import gc
 import logging
@@ -16,9 +15,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Render free tier: clip audio to this many seconds before processing.
-# RAVDESS files are 3-5 s, so this only affects unusually long uploads.
-MAX_AUDIO_SECONDS = 10
+MAX_AUDIO_SECONDS = 10   # clip before processing — RAVDESS files are 3-5 s
 
 
 def extract_features(
@@ -31,22 +28,17 @@ def extract_features(
     sample_rate: Optional[int] = None,
 ) -> np.ndarray:
     """
-    Extract a 1-D float32 feature vector (default 180-dim: 40+12+128).
+    Extract 180-dim float32 feature vector (40 MFCC + 12 Chroma + 128 Mel).
 
-    Memory budget on 512 MB Render free tier
-    ─────────────────────────────────────────
-    librosa import   ~80 MB
-    sklearn model    ~20 MB
-    audio array      ~2 MB  (3 s × 22050 Hz × 4 bytes)
-    STFT             ~8 MB  (kaiser_fast)
-    mel spectrogram  ~4 MB
-    ─────────────────────────────────────────
-    Total            ~114 MB  ← well within 512 MB
+    Imports librosa lazily — inside this function — so the module loads
+    at prediction time, not at server startup. This keeps uvicorn startup
+    under 5 seconds and prevents health-check timeouts on Render free tier.
     """
-    import librosa
-    import soundfile as sf
+    # ── Lazy imports (happen only on first prediction call) ────────────────────
+    import librosa          # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
 
-    TARGET_SR = 22050   # RAVDESS native sample rate — must match training
+    TARGET_SR = 22050  # RAVDESS native rate — must match training
 
     # ── 1. Load audio ──────────────────────────────────────────────────────────
     logger.info("Opening audio file: %s", file_path)
@@ -56,12 +48,9 @@ def extract_features(
             sr = sound_file.samplerate
             logger.info("Loaded via soundfile. shape=%s sr=%s", X.shape, sr)
     except Exception as e:
-        logger.warning("soundfile failed (%s) — falling back to librosa", e)
+        logger.warning("soundfile failed (%s) — falling back to librosa.load", e)
         X, sr = librosa.load(
-            file_path,
-            sr=TARGET_SR,          # load + resample in one step (saves RAM)
-            mono=True,
-            res_type="kaiser_fast",
+            file_path, sr=TARGET_SR, mono=True, res_type="kaiser_fast"
         )
         logger.info("Loaded via librosa. shape=%s sr=%s", X.shape, sr)
 
@@ -70,73 +59,64 @@ def extract_features(
         X = X.mean(axis=1).astype(np.float32)
 
     # ── 3. Clip to MAX_AUDIO_SECONDS ──────────────────────────────────────────
-    max_samples = MAX_AUDIO_SECONDS * sr
+    max_samples = int(MAX_AUDIO_SECONDS * sr)
     if len(X) > max_samples:
-        logger.info("Clipping audio from %d to %d samples", len(X), max_samples)
+        logger.info("Clipping audio %d → %d samples", len(X), max_samples)
         X = X[:max_samples]
 
-    # ── 4. Resample to TARGET_SR ──────────────────────────────────────────────
-    # Use kaiser_fast — same quality for speech, ~10x less peak memory than
-    # the default kaiser_best.
+    # ── 4. Resample to 22050 Hz (kaiser_fast = low RAM) ──────────────────────
     if sr != TARGET_SR:
-        logger.info("Resampling %s Hz → %s Hz (kaiser_fast)", sr, TARGET_SR)
+        logger.info("Resampling %d Hz → %d Hz (kaiser_fast)", sr, TARGET_SR)
         X = librosa.resample(
             X, orig_sr=sr, target_sr=TARGET_SR, res_type="kaiser_fast"
         )
         sr = TARGET_SR
-        logger.info("Resample complete. new_shape=%s", X.shape)
+        logger.info("Resample done. shape=%s", X.shape)
 
-    # ── 5. Pre-compute STFT once (shared by MFCC and Chroma) ─────────────────
     result = np.array([], dtype=np.float32)
-    stft = None
 
-    if use_chroma or use_mfcc:
+    # ── 5. Compute STFT once — shared by MFCC + Chroma ───────────────────────
+    stft = None
+    if use_mfcc or use_chroma:
         logger.info("Computing STFT…")
         stft = np.abs(librosa.stft(X)).astype(np.float32)
-        logger.info("STFT shape=%s", stft.shape)
 
     # ── 6. MFCC ───────────────────────────────────────────────────────────────
     if use_mfcc:
         t0 = time.time()
-        logger.info("Computing MFCC (n_mfcc=%d)…", n_mfcc)
-        mfcc_raw = librosa.feature.mfcc(
-            S=librosa.power_to_db(stft ** 2),  # reuse STFT — avoids recompute
-            sr=sr,
-            n_mfcc=n_mfcc,
+        mfcc_mat = librosa.feature.mfcc(
+            S=librosa.power_to_db(stft ** 2), sr=sr, n_mfcc=n_mfcc
         )
-        mfccs = np.mean(mfcc_raw.T, axis=0).astype(np.float32)
-        del mfcc_raw
+        mfccs = np.mean(mfcc_mat.T, axis=0).astype(np.float32)
+        del mfcc_mat
         gc.collect()
-        logger.info("MFCC done in %.3fs shape=%s", time.time() - t0, mfccs.shape)
+        logger.info("MFCC done %.2fs  shape=%s", time.time() - t0, mfccs.shape)
         result = np.hstack((result, mfccs))
 
     # ── 7. Chroma ─────────────────────────────────────────────────────────────
     if use_chroma:
         t0 = time.time()
-        logger.info("Computing Chroma…")
-        chroma_raw = librosa.feature.chroma_stft(S=stft, sr=sr)
-        chroma = np.mean(chroma_raw.T, axis=0).astype(np.float32)
-        del chroma_raw
+        chroma_mat = librosa.feature.chroma_stft(S=stft, sr=sr)
+        chroma = np.mean(chroma_mat.T, axis=0).astype(np.float32)
+        del chroma_mat
         gc.collect()
-        logger.info("Chroma done in %.3fs shape=%s", time.time() - t0, chroma.shape)
+        logger.info("Chroma done %.2fs  shape=%s", time.time() - t0, chroma.shape)
         result = np.hstack((result, chroma))
 
-    # Free STFT — no longer needed
     del stft
     gc.collect()
 
     # ── 8. Mel Spectrogram ────────────────────────────────────────────────────
     if use_mel:
         t0 = time.time()
-        logger.info("Computing Mel spectrogram…")
-        mel_raw = librosa.feature.melspectrogram(y=X, sr=sr)
-        mel = np.mean(mel_raw.T, axis=0).astype(np.float32)
-        del mel_raw, X
+        mel_mat = librosa.feature.melspectrogram(y=X, sr=sr)
+        mel = np.mean(mel_mat.T, axis=0).astype(np.float32)
+        del mel_mat, X
         gc.collect()
-        logger.info("Mel done in %.3fs shape=%s", time.time() - t0, mel.shape)
+        logger.info("Mel done %.2fs  shape=%s", time.time() - t0, mel.shape)
         result = np.hstack((result, mel))
 
-    logger.info("Feature extraction complete. vector_size=%d", len(result))
+    logger.info("Extraction complete. vector_size=%d", len(result))
     return result
 
 
@@ -146,11 +126,7 @@ def feature_dim(
     use_mel: bool = True,
     n_mfcc: int = 40,
 ) -> int:
-    return (
-        (n_mfcc if use_mfcc else 0)
-        + (12 if use_chroma else 0)
-        + (128 if use_mel else 0)
-    )
+    return (n_mfcc if use_mfcc else 0) + (12 if use_chroma else 0) + (128 if use_mel else 0)
 
 
 def feature_names(

@@ -1,9 +1,9 @@
-"""Pydantic schemas for API request/response validation."""
+"""Pydantic schemas — fixed model_version namespace warning."""
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -27,33 +27,39 @@ class TokenResponse(BaseModel):
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     email: str
     username: str
     is_active: bool
     created_at: datetime
 
-    model_config = {"from_attributes": True}
-
 
 # ── Prediction ─────────────────────────────────────────────────────────────────
 
 class PredictionOut(BaseModel):
+    # Fix: suppress Pydantic v2 warning about "model_" protected namespace
+    model_config = ConfigDict(
+        from_attributes=True,
+        protected_namespaces=(),   # ← this silences the model_version warning
+    )
+
     id: Optional[UUID] = None
     filename: str
     predicted_emotion: str
     confidence: float
     all_probabilities: Dict[str, float]
     audio_duration_s: Optional[float] = None
-    model_version: Optional[str] = None
+    model_version: Optional[str] = None   # field kept, warning now suppressed
     created_at: Optional[datetime] = None
-
-    model_config = {"from_attributes": True}
 
 
 # ── Model info ────────────────────────────────────────────────────────────────
 
 class ModelInfoOut(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     loaded: bool
     algorithm: Optional[str] = None
     emotions: Optional[List[str]] = None
