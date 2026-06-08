@@ -50,7 +50,7 @@ def extract_features(
     except Exception as e:
         logger.warning("soundfile failed (%s) — falling back to librosa.load", e)
         X, sr = librosa.load(
-            file_path, sr=TARGET_SR, mono=True, res_type="kaiser_fast"
+            file_path, sr=TARGET_SR, mono=True, res_type="soxr_hq"
         )
         logger.info("Loaded via librosa. shape=%s sr=%s", X.shape, sr)
 
@@ -68,7 +68,7 @@ def extract_features(
     if sr != TARGET_SR:
         logger.info("Resampling %d Hz → %d Hz (kaiser_fast)", sr, TARGET_SR)
         X = librosa.resample(
-            X, orig_sr=sr, target_sr=TARGET_SR, res_type="kaiser_fast"
+            X, orig_sr=sr, target_sr=TARGET_SR, res_type="soxr_hq"
         )
         sr = TARGET_SR
         logger.info("Resample done. shape=%s", X.shape)

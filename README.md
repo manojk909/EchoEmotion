@@ -213,7 +213,7 @@ model_registry (id, version, algorithm, accuracy, metrics JSON, is_active, creat
 
 ## Deployment
 
-### Backend → Render / Railway
+### Backend → Render
 ```
 Build command: pip install -r requirements.txt
 Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -228,7 +228,7 @@ npm run build
 # Set VITE_API_URL to your backend URL
 ```
 
-### Database → Supabase / Neon
+### Database → Neon
 Free-tier PostgreSQL — just update `DATABASE_URL` in your env.
 
 ---
@@ -245,34 +245,4 @@ cd frontend
 npm test
 ```
 
----
-
-## Resume Description
-
-> **Speech Emotion Recognition System** · Python · FastAPI · React · PostgreSQL · Docker
->
-> Built an end-to-end ML system that detects emotions (calm, happy, fearful, disgust) from
-> speech audio. Implemented a multi-model training pipeline comparing MLP, Random Forest,
-> SVM, XGBoost, and LightGBM with 5-fold cross-validation and automatic best-model selection.
-> Wrapped in a production FastAPI backend with JWT auth, rate limiting, and Swagger docs.
-> React frontend features drag-and-drop upload, live microphone recording, and interactive
-> probability charts. Deployed via Docker Compose with PostgreSQL persistence.
-
----
-
-## LinkedIn Post Draft
-
-> 🎙️ Just shipped EchoEmotion — my Speech Emotion Recognition project!
->
-> 🧠 Multi-model ML pipeline (MLP · Random Forest · SVM · XGBoost · LightGBM) trained on RAVDESS
-> 🚀 FastAPI backend with JWT auth, Swagger docs, and PostgreSQL
-> 🎨 React + TailwindCSS frontend with real-time mic recording and probability charts
-> 🐳 Fully dockerized with GitHub Actions CI/CD
->
-> Live demo: [link] | GitHub: [link]
->
-> #MachineLearning #Python #FastAPI #React #SpeechRecognition #OpenSource
-
----
-
-MIT License © 2024 Your Name
+MIT License © 2025 Manoj Kharkar
