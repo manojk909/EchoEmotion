@@ -23,8 +23,8 @@ soxr==0.3.7
 numpy==1.26.4
 scikit-learn==1.5.0
 scipy==1.13.1
-numba==0.59.1
-llvmlite==0.42.0
+# numba==0.59.1
+# llvmlite==0.42.0
 
 # ── Boosting models ────────────────────────────────────────────────────────────
 xgboost==2.0.3
